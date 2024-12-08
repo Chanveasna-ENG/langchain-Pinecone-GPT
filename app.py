@@ -1,12 +1,11 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI
-from openai import OpenAI
 from fastapi import FastAPI, HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 import pinecone
+from pinecone import Pinecone, ServerlessSpec
 
 load_dotenv()
 
@@ -20,12 +19,21 @@ environment = os.getenv("PINECONE_ENV")
 index_name = os.getenv("PINECONE_INDEX")
 
 # Initialize pinecone client
-pinecone.init(api_key=pinecone_api_key, environment=environment)
-index = pinecone.Index(index_name)
+pc = Pinecone(api_key=pinecone_api_key)
+if index_name not in pc.list_indexes().names():
+    pc.create_index(
+        name=index_name,
+        dimension=3072,
+        metric='cosine',
+        spec=ServerlessSpec(
+            cloud='aws',
+            region=environment
+        )
+    )
+index = pc.Index(index_name)
 
 # Middleware to secure HTTP endpoint
 security = HTTPBearer()
-
 
 def validate_token(
     http_auth_credentials: HTTPAuthorizationCredentials = Security(security),
@@ -37,10 +45,8 @@ def validate_token(
     else:
         raise HTTPException(status_code=403, detail="Invalid authentication scheme")
 
-
 class QueryModel(BaseModel):
     query: str
-
 
 @app.post("/")
 async def get_context(
@@ -54,24 +60,7 @@ async def get_context(
     embedding = res.data[0].embedding
     # Search for matching Vectors
     results = index.query(embedding, top_k=6, include_metadata=True).to_dict()
-    # Filter out metadata fron search result
+    # Filter out metadata from search result
     context = [match["metadata"]["text"] for match in results["matches"]]
-    # Retrun context
+    # Return context
     return context
-
-
-# @app.get("/")
-# async def get_context(query: str = None, credentials: HTTPAuthorizationCredentials = Depends(validate_token)):
-
-#     # convert query to embeddings
-#     res = openai_client.embeddings.create(
-#         input=[query],
-#         model="text-embedding-ada-002"
-#     )
-#     embedding = res.data[0].embedding
-#     # Search for matching Vectors
-#     results = index.query(embedding, top_k=6, include_metadata=True).to_dict()
-#     # Filter out metadata fron search result
-#     context = [match['metadata']['text'] for match in results['matches']]
-#     # Retrun context
-#     return context

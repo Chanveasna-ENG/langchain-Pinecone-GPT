@@ -19,10 +19,16 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Setup environment variables
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_api_key = os.getenv("OPENAI_API_KEY")
 pinecone_api_key = os.getenv("PINECONE_API_KEY")
 environment = os.getenv("PINECONE_ENV")
 index_name = os.getenv("PINECONE_INDEX")
+
+# Debugging: Print the OpenAI API key
+print(f"OpenAI API Key: {openai_api_key}")
+
+# Initialize OpenAI client
+openai_client = OpenAI(api_key=openai_api_key)
 
 # Initialize pinecone client
 pc = Pinecone(api_key=pinecone_api_key)
@@ -68,7 +74,7 @@ async def get_context(
         )
         embedding = res.data[0].embedding
         # Search for matching Vectors
-        results = index.query(embedding, top_k=6, include_metadata=True).to_dict()
+        results = index.query(vector=embedding, top_k=6, include_metadata=True).to_dict()
         # Filter out metadata from search result
         context = [match["metadata"]["text"] for match in results["matches"]]
         # Return context

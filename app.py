@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,6 +10,10 @@ import pinecone
 from pinecone import Pinecone, ServerlessSpec
 
 load_dotenv()
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # uvicorn app:app --host 0.0.0.0 --port 10000
 app = FastAPI()
@@ -42,8 +47,10 @@ def validate_token(
     if http_auth_credentials.scheme.lower() == "bearer":
         token = http_auth_credentials.credentials
         if token != os.getenv("RENDER_API_TOKEN"):
+            logger.error("Invalid token")
             raise HTTPException(status_code=403, detail="Invalid token")
     else:
+        logger.error("Invalid authentication scheme")
         raise HTTPException(status_code=403, detail="Invalid authentication scheme")
 
 class QueryModel(BaseModel):
@@ -54,14 +61,18 @@ async def get_context(
     query_data: QueryModel,
     credentials: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
-    # convert query to embeddings
-    res = openai_client.embeddings.create(
-        input=[query_data.query], model="text-embedding-3-large"
-    )
-    embedding = res.data[0].embedding
-    # Search for matching Vectors
-    results = index.query(embedding, top_k=6, include_metadata=True).to_dict()
-    # Filter out metadata from search result
-    context = [match["metadata"]["text"] for match in results["matches"]]
-    # Return context
-    return context
+    try:
+        # convert query to embeddings
+        res = openai_client.embeddings.create(
+            input=[query_data.query], model="text-embedding-3-large"
+        )
+        embedding = res.data[0].embedding
+        # Search for matching Vectors
+        results = index.query(embedding, top_k=6, include_metadata=True).to_dict()
+        # Filter out metadata from search result
+        context = [match["metadata"]["text"] for match in results["matches"]]
+        # Return context
+        return context
+    except Exception as e:
+        logger.error(f"Error processing request: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")

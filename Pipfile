@@ -18,7 +18,6 @@ bs4 = "*"
 sentence-transformers = "*"
 pinecone-client = "*"
 tiktoken = "*"
-uvicorn = "*"
 
 [dev-packages]
 

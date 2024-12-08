@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from openai import OpenAI, Embeddings
+from langchain_openai import OpenAIEmbeddings
 
 import pinecone
 from pinecone import Pinecone, ServerlessSpec

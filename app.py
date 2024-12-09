@@ -25,7 +25,7 @@ environment = os.getenv("PINECONE_ENV")
 index_name = os.getenv("PINECONE_INDEX")
 
 # Debugging: Print the OpenAI API key
-print(f"OpenAI API Key: {openai_api_key}")
+# print(f"OpenAI API Key: {openai_api_key}")
 
 # Initialize OpenAI client
 openai_client = OpenAI(api_key=openai_api_key)
